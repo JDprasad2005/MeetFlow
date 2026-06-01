@@ -1,0 +1,1 @@
+{"name":"MeetFlow","description":"A comfortable, premium video conferencing application featuring real-time chat, screen sharing simulations, device previews, and custom room coordination.","requestFramePermissions":["camera","microphone"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
