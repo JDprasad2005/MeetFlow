@@ -412,7 +412,7 @@ export default function App() {
       stopCameraStream();
     }
     return () => stopCameraStream();
-  }, [view, preferences.cameraDeviceId, preferences.micDeviceId]);
+  }, [view, preferences.cameraDeviceId, preferences.micDeviceId, preferences.cameraEnabled, preferences.micEnabled]);
 
   async function requestCameraStream() {
     try {
@@ -1108,9 +1108,14 @@ export default function App() {
     setPreferences(prev => ({ ...prev, micEnabled: nextStatus }));
 
     if (localStream) {
-      localStream.getAudioTracks().forEach(track => {
-        track.enabled = nextStatus;
-      });
+      const audioTracks = localStream.getAudioTracks();
+      if (audioTracks.length > 0) {
+        audioTracks.forEach(track => {
+          track.enabled = nextStatus;
+        });
+      } else if (nextStatus) {
+        requestCameraStream();
+      }
     } else if (nextStatus) {
       requestCameraStream();
     }
@@ -1340,6 +1345,7 @@ export default function App() {
     };
 
     setChatInput("");
+    setMessages(prev => [...prev, chatMsg]);
     await sendRoomAction("chat", { message: chatMsg });
   }
 
@@ -1472,8 +1478,23 @@ export default function App() {
   // Preferences save helper
   function handleSavePreference(newPrefs: UserPreferences) {
     setPreferences(newPrefs);
-    // Alert active meeting roster
+
     if (view === 'meeting') {
+      if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+          track.enabled = newPrefs.micEnabled;
+        });
+        localStream.getVideoTracks().forEach(track => {
+          track.enabled = newPrefs.cameraEnabled;
+        });
+
+        if (newPrefs.micEnabled && localStream.getAudioTracks().length === 0) {
+          requestCameraStream();
+        }
+      } else if (newPrefs.cameraEnabled || newPrefs.micEnabled) {
+        requestCameraStream();
+      }
+
       sendRoomAction("update-device", {
         participantId: localParticipantId,
         name: newPrefs.name,
@@ -3264,7 +3285,10 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  setChatOpen(!chatOpen);
+                  const nextOpen = !chatOpen;
+                  setChatOpen(nextOpen);
+                  setSidebarOpen(nextOpen);
+                  setActiveRightTab('chat');
                   setUnreadCount(0);
                 }}
                 className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
